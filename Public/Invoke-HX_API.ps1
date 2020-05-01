@@ -193,10 +193,12 @@ function Invoke-HX_API{
 
 	process{
 		if ($Proxy){
+            Write-Verbose "Config=Proxy"
 			Get-HX_API_Config -Proxy
 		}
 
 		else{
+            Write-Verbose "Config=NoProxy"
 			Get-HX_API_Config
 		}
 
