@@ -1,0 +1,15 @@
+{
+    "commands": [
+        {
+            "name": "stateagentinspector",
+            "parameters": [
+                {
+                    "name": "eventTypes",
+                    "value": [
+                        "processEvent"
+                    ]
+                }
+            ]
+        }
+    ]
+}

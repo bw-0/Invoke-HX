@@ -4,7 +4,7 @@
 .DESCRIPTION
    Long description
 .EXAMPLE
-   Invoke-HX_API -API Alert_Groups -action list -start (Get-Date).AddDays(-1) -limit 10000
+   Invoke-HX_API HostSet new -type dynamic -hostset_name "AD_LAB1"
 .EXAMPLE
    Another example of how to use this cmdlet
 .NOTES
@@ -27,13 +27,13 @@ function Invoke-HX_API{
 		[Parameter(Mandatory=$false)]
 		[ValidateNotNull()]
 		[ValidateNotNullOrEmpty()]
-		[ValidateSet("file","triage","bulk","live","static","dynamic")]
+		[ValidateSet("file","triage","bulk","live","static","dynamic","all")]
 		$type,
 
 		[Parameter(Mandatory=$false,Position=1)]
 		[ValidateNotNull()]
 		[ValidateNotNullOrEmpty()]
-		[ValidateSet("get","delete","list","get-childitem","stop","download","cancel","new","update","acquire-file","search","get-host_set_policies","acknowledge")]
+		[ValidateSet("acknowledge","acquire","acquire-file","acquire-live","add","approve","cancel","delete","download","get","get-childitem","get-host_set_policies","get-quarantines","list","new","remove","request","restore","search","stop","triage","update")]
 		$action,
 
 		[Parameter(Mandatory=$false)]
@@ -91,12 +91,37 @@ function Invoke-HX_API{
 		[Parameter(Mandatory=$false)]
 		[ValidateNotNull()]
 		[ValidateNotNullOrEmpty()]
+		$InFile,
+
+		[Parameter(Mandatory=$false)]
+		[ValidateNotNull()]
+		[ValidateNotNullOrEmpty()]
 		$OutFile,
 
 		[Parameter(Mandatory=$false)]
 		[ValidateNotNull()]
 		[ValidateNotNullOrEmpty()]
 		$Policy,
+
+		[Parameter(Mandatory=$false)]
+		[ValidateNotNull()]
+		[ValidateNotNullOrEmpty()]
+		[string]$MD5,
+
+		[Parameter(Mandatory=$false)]
+		[ValidateNotNull()]
+		[ValidateNotNullOrEmpty()]
+		[int]$ScriptID,
+
+		[Parameter(Mandatory=$false)]
+		[ValidateNotNull()]
+		[ValidateNotNullOrEmpty()]
+		[string]$ScriptName,
+
+		[Parameter(Mandatory=$false)]
+		[ValidateNotNull()]
+		[ValidateNotNullOrEmpty()]
+		[string]$ScriptContent,
 
 		#Specify the amount of hours in the past you want to search relative to now.
 		[Parameter(Mandatory=$false)]
@@ -198,32 +223,52 @@ function Invoke-HX_API{
 			"Acquire"{
 				switch ($type){
 					"file"{
-						$endpoint="/hx/api/v3/acqs/files"
 						switch ($action){
 							"list"{
-								$method="get"
+								$endpoint="/hx/api/v3/acqs/files"
+								$method="GET"
 								$body+=@{"sort"='request_time+descending'}
 							}
 							"get"{
-									if (!$id){
-										Write-Error "[Invoke-HX_API]::No Acquisition ID provided"
-										break
-									}
-									$method="get"
+								$method="GET"
+
+								if (($null -eq $id) -and ($null -eq $MD5)){
+									Write-Error "[Invoke-HX_API]::No Acquisition ID or MD5 provided"
+									break
+								}
+								
+								if ($MD5){
+									"Get by MD5"
+									$endpoint="/hx/api/v3/acqs/files?md5=$MD5"
+								}
+								
+								else {
+									"Get by ID"
+									$endpoint="/hx/api/v3/acqs/files/$ID"
+								}
 							}
 						}
 					}
 					"triage"{
-						$endpoint="/hx/api/v3/acqs/triages"
 						switch ($action){
 							"list"{
-								$method="get"
+								$method="GET"
+								$endpoint="/hx/api/v3/acqs/triages"
 								$body+=@{"sort"='request_time+descending'}
 							}
 							"get"{
 								if (!$id){
 									Write-Error "[Invoke-HX_API]::No Acquisition ID provided"
 								}
+								$method="GET"
+								$endpoint="/hx/api/v3/acqs/triages/$id"
+							}
+							"delete"{
+								if (!$id){
+									Write-Error "[Invoke-HX_API]::No Acquisition ID provided"
+								}
+								$method="DELETE"
+								$endpoint="/hx/api/v3/acqs/triages/$id"
 							}
 						}
 					}
@@ -231,11 +276,12 @@ function Invoke-HX_API{
 						$endpoint="/hx/api/v3/acqs/bulk"
 						switch ($action){
 							"list"{
-								$method="get"
+								$method="GET"
 								$body+=@{"sort"='create_time+descending'}
 							}
+							
 							"get"{
-								$method="get"
+								$method="GET"
 								if (!$id){
 									Write-Error "[Invoke-HX_API]::No Acquisition ID provided"
 								}
@@ -243,23 +289,31 @@ function Invoke-HX_API{
 									$endpoint="/hx/api/v3/acqs/bulk/$id"
 								}
 							}
+							
 							"delete"{
-								$method="delete"
+								$method="DELETE"
 								if (!$id){
 									Write-Error "[Invoke-HX_API]::No Acquisition ID provided"
 								}
 								else{
 									$endpoint="/hx/api/v3/acqs/bulk/$id"
 								}
+
 							}
+							
+							"stop"{
+								$method="POST"
+								$endpoint="/hx/api/v3/acqs/bulk/$id/actions/stop"
+							}
+							
 							"new"{
-								$method="post"
+								$method="POST"
 								$endpoint="/hx/api/v3/acqs/bulk/"
-								if (!$script_content){$script_content=Read-Host "base64'd script"}
+								if (!$ScriptContent){$ScriptContent=Read-Host "base64'd script"}
 								if (!$hostsetid){$hostsetid=Read-Host "host set ID"}
 								if (!$platform){$platform=Read-Host "platform"}
 								if (!$comment){$comment=Read-Host "comment"}
-								$body+=@{"scripts"=@( @{ "platform"= $platform.ToLower();"b64"=$script_content})}
+								$body+=@{"scripts"=@( @{ "platform"= $platform.ToLower();"b64"=$ScriptContent})}
 								$body+=@{"host_set"=@{"_id"=[int]$hostsetid}}
 								$body+=@{"comment"=$comment}
 								$body=$body|ConvertTo-Json -Compress
@@ -270,7 +324,7 @@ function Invoke-HX_API{
 						$endpoint="/hx/api/v3/acqs/live"
 						switch ($action){
 							"list"{
-								$method="get"
+								$method="GET"
 								$body+=@{"sort"='request_time+descending'}
 							}
 							"get"{
@@ -278,9 +332,18 @@ function Invoke-HX_API{
 									Write-Error "[Invoke-HX_API]::No Acquisition ID provided"
 								}
 								else{
-									$method="get"
+									$method="GET"
 									$endpoint="/hx/api/v3/acqs/live/$id"
 								}
+							}
+						}
+					}
+					"all"{
+						$endpoint="/hx/api/v3/acqs/"
+						switch ($action){
+							"list"{
+								$method="GET"
+								$body+=@{"sort"='request_time+descending'}
 							}
 						}
 					}
@@ -308,14 +371,11 @@ function Invoke-HX_API{
 								return
 							}
 						}
-						#seems weird but the $_.url value of an acquisition is exactly what's needed for actions "Stop" and "Cancel"
-						"stop"{
-							$method="post"
-							$endpoint="$url/actions/stop"
-						}
-						"cancel"{
-							$method="post"
-							$endpoint="$url/actions/cancel"
+
+						"search"{
+							$method="GET"
+							$endpoint="/hx/api/v3/acqs/"
+							$body+=@{"search"=$query}
 						}
 					}
 				}
@@ -323,16 +383,20 @@ function Invoke-HX_API{
 			"Alerts"{
 				switch ($action){
 					"get"{
-						$method="get"
-						$body+=@{"sort"='reported_at+descending'}
+						$method="GET"
 
 						if ($id){
-							$endpoint="/hx/api/v3/id/$id"
+							$endpoint="/hx/api/v3/alerts/$id"
 							continue
 						}
 
 						else{
 							$endpoint="/hx/api/v3/alerts"
+							$body+=@{"sort"='reported_at+descending'}
+						}
+
+						if ($query){
+							$body+=$query
 						}
 
 						if ($start -and $end){
@@ -373,10 +437,10 @@ function Invoke-HX_API{
 				$endpoint="/hx/api/v3/alert_groups"
 				switch ($action){
 					"list"{
-						$method="get"
+						$method="GET"
 					}
 					"acknowledge"{
-						$method="patch"
+						$method="PATCH"
 						if (!$comment){$comment=Read-Host "comment"}
 						if (!$id){$id=Read-Host "Alert Group IDs"}
 						$body+=@{"alert_ids"=@($ID)}
@@ -389,7 +453,7 @@ function Invoke-HX_API{
 						$body=$body|ConvertTo-Json -Compress
 					}
 					"delete"{
-						$method="delete"
+						$method="DELETE"
 						if (!$id){$id=Read-Host "Alert Group IDs"}
 						$endpoint="/hx/api/v3/alert_groups/$id"
 					}
@@ -402,11 +466,27 @@ function Invoke-HX_API{
 
 			}
 			"Contain"{
-
 				switch($action){
 					"list"{
-						$method="get"
+						$method="GET"
 						$endpoint="/hx/api/v3/containment_states"
+					}
+					"get"{
+						$method="GET"
+						$endpoint="/hx/api/v3/hosts/$AgentID/containment"
+					}
+					"request"{
+						$method="POST"
+						$endpoint="/hx/api/v3/hosts/$AgentID/containment"
+					}
+					"approve"{
+						$method="PATCH"
+						$endpoint="/hx/api/v3/hosts/$AgentID/containment"
+						$body='{"state":"contain"}'
+					}
+					"cancel"{
+						$method="DELETE"
+						$endpoint="/hx/api/v3/hosts/$AgentID/containment"
 					}
 				}
 			}
@@ -414,19 +494,19 @@ function Invoke-HX_API{
 
 			$endpoint="/hx/api/v1/hosts"
 
-			if (!$action){$method="get"}
+			if (!$action){$method="GET"}
 			else{
 				switch($action){
 					"get"{
-						$method="get"
+						$method="GET"
 						$endpoint+="/$AgentID"
 					}
 					"delete"{
-						$method="delete"
+						$method="DELETE"
 						$endpoint+="/$AgentID"
 					}
 					"search"{
-						$method="get"
+						$method="GET"
 						if (!$query){
 							$query=Read-Host -Prompt "Search Query"
 						}
@@ -449,7 +529,7 @@ function Invoke-HX_API{
 						$filepath=$filepath -split "\\|/"
 						$req_path=$filepath[0..($filepath.Length -2)] -join "\"
 						$req_filename=$filepath[-1]
-						$method="post"
+						$method="POST"
 						$endpoint="/hx/api/v3/hosts/$AgentID/files"
 						$body+=@{
 							"req_path"=$req_path
@@ -459,19 +539,75 @@ function Invoke-HX_API{
 						$body=$body|ConvertTo-Json -Compress
 					}
 					"acquire-live"{
+
+						$method="POST"						
+						$endpoint="/hx/api/v3/hosts/$AgentID/live"
+
 						if (!$AgentID){
 							Write-Error "No AgentID provided. You must provide an HX Agent ID to acquire a file"
 							break
 						}
+
 						if (!$comment){
-							Write-Error "You didn't provide a comment for your file acquistion,you lazy ass"
-							break
+							do {$comment = Read-Host -Prompt "Required Comment"}
+							until ($comment -match "\w{4,}")
 						}
 
-						$method="post"
-						$endpoint="/hx/api/v3/hosts/$AgentID/live"
+						if ($ScriptID){
+							$body+=@{
+								"script"="_id=$ScriptID"
+							}
+						}
+
+						if ($InFile){
+
+							try {$InFile = Get-Item $InFile}
+
+							catch {Write-Error "Could not open file";break}
+
+							$Content = Get-Content $InFile.FullName -Encoding UTF8 -raw
+
+							$ScriptContent = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($Content))
+
+							$ScriptName = $InFile.BaseName
+
+							$body+=@{
+								"comment"=$comment
+								"name"="$ScriptName"
+								"script"= @{
+									"b64"=$ScriptContent
+								}
+							}
+						}
+
+						else{
+							if (!$ScriptName){$ScriptName=Read-Host "ScriptName"}
+							if (!$ScriptContent -or !$InFile){$ScriptContent=Read-Host "Base64'd UTF-8 Script Content"}
+							$body+=@{
+								"comment"=$comment
+								"name"="$ScriptName"
+								"script"= @{
+										"b64"=$ScriptContent
+								}
+							}
+						}
+						$body=$body|ConvertTo-Json -Compress
+					}
+					"get-quarantines"{
+						$method="GET"
+						$endpoint="/hx/api/v3/hosts/$AgentID/quarantines"
+					}
+					"triage"{
+
+						if (!$comment){
+							do {$comment = Read-Host -Prompt "Required Comment"}
+							until ($comment -match "\w{4,}")
+						}
+
+						$method="POST"
+						$endpoint="/hx/api/v3/hosts/$AgentID/triages"
 						$body+=@{
-							"script"="_id=$script_id"
+							"comment"=$comment
 						}
 						$body=$body|ConvertTo-Json -Compress
 					}
@@ -485,28 +621,27 @@ function Invoke-HX_API{
 
 		}
 			"HostSet"{
-				$endpoint="/hx/api/v3/host_sets"
 				switch ($action){
-					"list"{
-						$method="get"
+					"get"{
+						$method="GET"
+						$endpoint="/hx/api/v3/host_sets/$id"
 					}
 					"get-childitem"{
-						$method="get"
+						$method="GET"
 						if ($null -eq $ID){
 							Write-Error "[Invoke-HX_API]::Must Specify HostSet ID when using get-childitem"
 							break
 						}
 						$endpoint="/hx/api/v1/host_sets/$id/hosts"
 					}
-					"get"{
-						$method="get"
-						$endpoint="/hx/api/v3/host_sets/$id"
+					"list"{
+						$method="GET"
+						$endpoint="/hx/api/v3/host_sets"
 					}
 					"new"{
 						if (!$type){$type=read-host -Prompt "Static or Dynamic?"}
 						if (!$hostset_name){$hostset_name=read-host -Prompt "Name for new Host Set?"}
-						$body+=@{"name"=$hostset_name}
-						$method="post"
+						$method="POST"
 						switch ($type){
 							"dynamic"{
 								$endpoint="/hx/api/v3/host_sets/dynamic"
@@ -515,32 +650,69 @@ function Invoke-HX_API{
 								$hostset_val=read-host -Prompt "HostSet Value"
 								$hostset_kvp= @{
 									"operator"= $hostset_opr
-									"key"=    $hostset_key
-									"value"=  $hostset_val
+									"key"=$hostset_key
+									"value"=$hostset_val
 								}
-								$body+=@{"query"=$hostset_kvp}
+								$body+=@{
+									"name"=$hostset_name
+									"query"=$hostset_kvp
+								}
 							}
-							#Static creation was throwing 502's syntax looks good,IDK.
 							"static"{
 								$endpoint="/hx/api/v3/host_sets/static"
-								if ($null -eq $HostIDs.count){
-									$HostIDs=,$HostIDs
-								}
-								$body+=
-								@{
+								if (!$HostIDs.GetType().isarray){$HostIDs=,$HostIDs} #Force a single object to be in an array when formatted as JSON
+								$body+=@{
+									"name"=$hostset_name
 									"changes"=@(
 										@{
 											"command"="change"
-										}
-										@{
 											"add"=$HostIDs
-											"remove"=@()
 										}
 									)
 								}
 							}
 						}
 						$body=$body|ConvertTo-Json -Depth 10 -Compress
+					}
+					"add"{
+						switch ($type){
+							"static"{
+								$method="PUT"
+								$endpoint="/hx/api/v3/host_sets/static/$id"
+								if (!$HostIDs.GetType().isarray){$HostIDs=,$HostIDs} #Force a single object to be in an array when formatted as JSON
+								$body += @{
+									"name"=$hostset_name
+									"changes"=@(
+										@{
+											"command"="change"
+											"add"=$HostIDs
+										}
+									)
+								}
+								$body=$body|ConvertTo-Json -Depth 10 -Compress
+							}
+							"dynamic"{}
+						}
+					}
+					"remove"{
+						switch ($type){
+							"static"{
+								$method="PUT"
+								$endpoint="/hx/api/v3/host_sets/static/$id"
+								if (!$HostIDs.GetType().isarray){$HostIDs=,$HostIDs} #Force a single object to be in an array when formatted as JSON
+								$body += @{
+									"name"=$hostset_name
+									"changes"=@(
+										@{
+											"command"="change"
+											"remove"=$HostIDs
+										}
+									)
+								}
+								$body=$body|ConvertTo-Json -Depth 10 -Compress
+							}
+							"dynamic"{}
+						}
 					}
 				}
 			}
@@ -549,18 +721,18 @@ function Invoke-HX_API{
 			}
 			"Indicators"{
 				$endpoint="/hx/api/v3/indicators"
-				$method="get"
+				$method="GET"
 			}
 			"LogOut"{
 				$endpoint="/hx/api/v3/token"
-				$method="delete"
+				$method="DELETE"
 			}
 			"Policies"{
 				$endpoint="/hx/api/v3/policies"
 
 				switch ($action){
 					"list"{
-						$method="get"
+						$method="GET"
 					}
 					"update"{
 						$endpoint=$endpoint+"/$ID"
@@ -570,24 +742,66 @@ function Invoke-HX_API{
 					}
 					"get-host_set_policies"{
 						$endpoint="/hx/api/v3/host_set_policies"
-						$method="get"
+						$method="GET"
 					}
 				}
 			}
 			"Quarantine"{
-			    switch ($action){
-                    "list" {
-                        $endpoint="/hx/api/v3/quarantines"
-                        $method="get"
-                    }
-                }
+				switch ($action){
+					"get" {
+						$endpoint="/hx/api/v3/quarantines/$id"
+						$method="GET"
+					}
+					"list" {
+						$endpoint="/hx/api/v3/quarantines"
+						$method="GET"
+						$body+=@{"sort"='quarantined_at+descending'}
+					}
+					"acquire"{
+						if ($null -eq $ID){
+							$id=read-host -Prompt "Quarantine ID"
+						}
+						$endpoint="/hx/api/v3/quarantines/$id/files"
+						$method="POST"
+					}
+					"download"{
+						if (!$id){
+							Write-Error "[Invoke-HX_API]::No Acquisition ID provided"
+							break
+						}
+						$endpoint="/hx/api/v3/quarantines/files/$id.zip"
+						$resource=$uri+$endpoint
+						
+						if (!$OutFile){
+							$OutFile= ".\$id.zip"
+						}
+
+						if ($proxy){
+							$r=Invoke-RestMethod -Method Get -Uri $resource -Headers $header -Body $body -ContentType "application/octet-stream" -OutFile $OutFile -Proxy $Proxy_uri -ProxyUseDefaultCredentials -Verbose
+							return
+						}
+
+						else{
+							$r=Invoke-RestMethod -Method get -Uri $resource -Headers $header -Body $body -ContentType "application/octet-stream" -OutFile $OutFile
+							return
+						}
+					}
+					"restore"{
+						if (!$id){
+							Write-Error "[Invoke-HX_API]::No Quarantine ID provided"
+							break
+						}
+						$method = "POST"
+						$endpoint = "/hx/api/v3/quarantines/$id/action/restore"
+					}
+				}
 			}
 			"Searches"{
 				switch ($action){
 					"list"{
 						if ($id){$endpoint="/hx/api/v3/searches/$ID"}
 						else{$endpoint="/hx/api/v3/searches"}
-						$method="get"
+						$method="GET"
 					}
 					"get-childitem"{
 						if (!$id){
@@ -595,10 +809,10 @@ function Invoke-HX_API{
 							break
 						}
 						$endpoint="/hx/api/v3/searches/$ID/results"
-						$method="get"
+						$method="GET"
 					}
 					"stop"{
-						$method="post"
+						$method="POST"
 						$endpoint="/hx/api/v3/searches/$id/actions/stop"
 					}
 				}
@@ -606,16 +820,16 @@ function Invoke-HX_API{
 			"Scripts"{
 				$endpoint="/hx/api/v3/scripts"
 				switch ($action){
-					"list"{$method="get"}
+					"list"{$method="GET"}
 					"get"{
-						$method="get"
+						$method="GET"
 						if (!$id){
 							Write-Error "[Invoke-HX_API]::No Script ID provided. Use `"-action list`" to get all scripts,or provide a script ID"
 						}
 						else{$endpoint="/hx/api/v3/scripts/$id"}
 					}
 					"download"{
-						$method="get"
+						$method="GET"
 						$endpoint="/hx/api/v3/scripts.zip"
 						$resource=$uri+$endpoint
 						if (!$OutFile){
@@ -637,7 +851,7 @@ function Invoke-HX_API{
 			"SourceAlerts"{
 			}
 			"URL"{
-				$method="get"
+				$method="GET"
 				$endpoint=$url
 			}
 			default{"API Endpoint Not Defined,Please Contribute"}
@@ -708,15 +922,14 @@ function Invoke-HX_API{
 
 		$resource=$uri+$endpoint
 
-		Write-Verbose "Body: $($body.ToString())"
-		write-verbose "Header: $header"
-		write-verbose "Content_type: $content_type"
-		write-verbose "Method: $method"
-		write-verbose "EndPoint: $endpoint"
 		write-verbose "Resource: $resource"
+		write-verbose "EndPoint: $endpoint"
+		write-verbose "Method: $method"		
+		write-verbose "Content_type: $content_type"
+		write-verbose "Body: $body"
+		#write-verbose "Header: $header"
 
 		if ($proxy){
-			write-verbose "Body: $body"
 			$r=Invoke-RestMethod -Method $method -Uri $resource -Headers $header -Body $body -ContentType $content_type -Proxy $Proxy_uri -ProxyUseDefaultCredentials -Verbose
 		}
 

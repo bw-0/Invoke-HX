@@ -6,24 +6,24 @@ function Get-HX_API_Token {
 
 	[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-    #Returns a PS credential object which has the Username:Password string already built and base64'd
+	#Returns a PS credential object which has the Username:Password string already built and base64'd
 	$cred = Get-HX_API_Auth
-    if ($null -eq $cred){
-        Write-Error "[Get-HX_API_Token]::Could not get API auth"
-        break
-    }
+	if ($null -eq $cred){
+		Write-Error "[Get-HX_API_Token]::Could not get API auth"
+		break
+	}
 	
-    #Built the auth string for HX API
-    $header = @{
-        Authorization = "Basic $($cred.GetNetworkCredential().password)"
-    }
+	#Built the auth string for HX API
+	$header = @{
+		Authorization = "Basic $($cred.GetNetworkCredential().password)"
+	}
 
 	if ($Proxy){
 		Write-Verbose "Getting Token w/ Proxy $Proxy_uri"
 		Get-HX_API_Config -Proxy
-        if ($null -eq $Proxy_uri){
-            Write-Error "[Get-HX_API_Token]::Could not get Proxy Config from .ini file"
-        }
+		if ($null -eq $Proxy_uri){
+			Write-Error "[Get-HX_API_Token]::Could not get Proxy Config from .ini file"
+		}
 		$r = Invoke-WebRequest -Method get -Uri $uri/hx/api/v3/token -Headers $header -ContentType "application/json" -Proxy $Proxy_uri -ProxyUseDefaultCredentials
 	}
 
