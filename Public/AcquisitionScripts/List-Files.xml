@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<script xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" chaining="implicit">
+	<commands>
+		<command xsi:type="ExecuteModuleCommand" id="e68e512f-0000-4000-8000-000000000001">
+			<module name="files-raw" version="1.0.0"/>
+			<config xsi:type="ParameterListModuleConfig">
+				<parameters>
+					<param name="Active Files">
+						<value xsi:type="xsd:string">true</value>
+					</param>
+					<param name="Deleted Files">
+						<value xsi:type="xsd:string">false</value>
+					</param>
+					<param name="Path">
+						<value xsi:type="xsd:string">%SYSTEMDRIVE%\BW-0\</value>
+					</param>
+					<param name="Depth">
+						<value xsi:type="xsd:string">4</value>
+					</param>
+					<param name="MD5">
+						<value xsi:type="xsd:string">true</value>
+					</param>
+					<param name="Include Files">
+						<value xsi:type="xsd:string">true</value>
+					</param>
+					<param name="Include Directories">
+						<value xsi:type="xsd:string">true</value>
+					</param>
+					<param name="Get Resources">
+						<value xsi:type="xsd:string">false</value>
+					</param>
+				</parameters>
+			</config>
+		</command>
+	</commands>
+</script>

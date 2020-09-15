@@ -1,0 +1,15 @@
+{
+    "commands": [
+        {
+            "name": "eventbuffer",
+            "parameters": [
+                {
+                    "name": "eventTypes",
+                    "value": [
+                        "processEvent"
+                    ]
+                }
+            ]
+        }
+    ]
+}

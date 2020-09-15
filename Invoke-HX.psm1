@@ -5,12 +5,12 @@ $Private = @( Get-ChildItem -Path $PSScriptRoot\Private\ -Recurse -File -Filter 
 
 #Dot source the files
 Foreach($import in @($Public + $Private)){
+    
+    if ($null -eq $import){
+        continue
+    }
 	
-	if ($null -eq $import){
-		continue
-	}
-	
-	Try{
+    Try{
 		. $import.fullname
 	}
 
