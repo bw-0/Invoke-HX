@@ -1,0 +1,21 @@
+{
+    "commands": [
+        {
+            "name": "stateagentinspector",
+            "parameters": [
+                {
+                    "name": "eventTypes",
+                    "value": [
+                        "processEvent"
+                    ]
+                },
+                {
+                    "name": "intervalStart",
+                    "value": [
+                        "2020-06-02T00:00:00.000Z"
+                    ]
+                }
+            ]
+        }
+    ]
+}

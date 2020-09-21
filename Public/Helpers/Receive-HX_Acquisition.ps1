@@ -16,7 +16,7 @@
 		try {
 			if ($Proxy){
 				hx Acquire download -ID $id -Verbose -Proxy
-		}
+		    }
 		
 			else {
 				hx Acquire download -ID $id -Verbose
@@ -33,5 +33,5 @@
 	until ($DLpath -and (Test-Path $DLpath))
 
 	try {Ding "Acquisition Downloaded: $($DLpath.fullname)"}
-	catch {else {"Acquisition Downloaded: $($DLpath.fullname)"}}
+	catch {"Acquisition Downloaded: $($DLpath.fullname)"}
 }

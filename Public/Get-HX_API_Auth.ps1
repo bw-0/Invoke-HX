@@ -1,5 +1,5 @@
 function Get-HX_API_Auth{
-
+    #This function doesn't visually output anything, it's used in Get-HX_API_Token.ps1
 	$in_file = "$home/feye_hx_api.txt"
 
 	if (!(Test-Path $in_file -ErrorAction SilentlyContinue)){

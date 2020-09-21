@@ -19,38 +19,44 @@ foreach ($pick in $picks){
 ## Advanced
 ### Good for big jobs, or adding lots of hosts to an existing host set
 ```
-#Get Host IDs that you want to add/remove to/from a host set
-$Hosts = (hx Hosts search -query "123456").data.entries
+#Get hosts
+#This is a single column CSV with "hostname" as the header, and host names you want to add. FQDNs need to be split to get hostname only.
+$import = Import-Csv '.\PATH_TO\THIS.csv'
 
-if (!$hosts.count -ge 1){
-	write-host "No Hosts Chosen"
-	break
+#Some people store a local copy of the fleet, this checks for that first, otherwise make API request
+if (gci $env:USERPROFILE\documents\hx\ -Filter HX_hosts_*){
+    $hosts = Get-HX_Hosts
+}
+else {
+    $hosts = hx Hosts list -limit 75555
 }
 
-#Pick host set to add hosts to
-$picks = (hx HostSet list -limit 10000).data.entries | Out-GridView -PassThru
+$hosts = $hosts.data.entries|?{$_.hostname -in $import.hostname}
 
-#Add hosts to host set. If adding multiple hosts at once and one already exists, the whole transaction will fail.
+#Create hostset
+$hostset = (hx HostSet new -hostset_name "INSERT_NAME_HERE" -Verbose).data
 
-foreach ($pick in $picks){
-	
-	$existing = hx HostSet get-childitem -ID $pick._id
+#Add hosts
+$existing = hx HostSet get-childitem -ID $hostset._id
 
-	$add, $skip = $Hosts.where({$_._id -notin $existing.data.entries._id}, "split")
+$add, $skip = $Hosts.where({$_._id -notin $existing.data.entries._id}, "split")
 
-	if ($add.count -ge 1){
-		Invoke-HX_API -API HostSet -action add -type static -ID $pick._id -hostset_name $pick.name -HostIDs $add._id -Verbose
-		
+if ($add.count -ge 1){
+	try {
+		Invoke-HX_API -API HostSet -action add -type static -ID $hostset._id -hostset_name $hostset.name -HostIDs ($add._id|select-object -unique) -Verbose
 		$UTC = (Get-Date).ToUniversalTime()
-		write-host "$(get-date $UTC -Format "yyyy-MM-ddTHH:mm:ssK") $($add.count) host/s added to $($pick.name)"
+		write-host "$(get-date $UTC -Format "yyyy-MM-ddTHH:mm:ssK") $($add.count) host/s added to $($hostset.name)"
 	}
+	catch {
+		throw "Error adding hosts"
+	}
+}
 
-	else {
-		write-host "No Applicable hosts to add"
-	}
+else {
+	write-host "No Applicable hosts to add"
+}
 
-	if ($skip){
-		write-host "[$(get-date $UTC -Format "yyyy-MM-ddTHH:mm:ssK")] $($skip.count) host/s skipped from $($pick.name)"
-	}
+if ($skip){
+	write-host "[$(get-date $UTC -Format "yyyy-MM-ddTHH:mm:ssK")] $($skip.count) host/s skipped from $($hostset.name)"
 }
 ```

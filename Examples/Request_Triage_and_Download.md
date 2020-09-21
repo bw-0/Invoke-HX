@@ -1,7 +1,7 @@
 # Request Triage And Dowload
 ```
 #Get Agent ID by searching partial hostname|IP Address|Agent ID, just like Hosts search in WebUI
-$search = hx hosts search -query "DESKTOP-123456"
+$search = hx hosts search -query DESKTOP-123456
 
 #Review search results to ensure one host
 $search.data.entries
